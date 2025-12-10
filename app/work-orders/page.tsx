@@ -5,11 +5,9 @@ import AppShell from "@/components/layout/AppShell";
 import WorkOrdersList from "@/components/work-orders/WorkOrdersList";
 
 export default async function WorkOrdersPage() {
-  // Check authentication
+  // Get userId from session if available (optional for free version, but auth is still required)
   const session = await auth();
-  if (!session || !session.userId) {
-    redirect("/auth/signin");
-  }
+  const userId = session?.userId ?? null;
 
   return (
     <AppShell>

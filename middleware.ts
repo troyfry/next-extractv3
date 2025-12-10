@@ -4,6 +4,8 @@
  * This middleware checks authentication status and redirects
  * unauthenticated users to a sign-in page.
  * 
+ * All users (including free users) must sign in with Google via NextAuth.
+ * 
  * Currently protects all routes except:
  * - /api/auth/* (authentication endpoints)
  * - /auth/* (sign-in pages)

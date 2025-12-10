@@ -33,15 +33,9 @@ export async function POST(_req: Request, { params }: Params) {
     return NextResponse.json({ error: "Missing id" }, { status: 400 });
   }
 
-  // Check authentication
+  // Get userId from session if available (optional for free version)
   const session = await auth();
-  if (!session || !session.userId) {
-    return NextResponse.json(
-      { error: "Unauthorized" },
-      { status: 401 }
-    );
-  }
-  const userId = session.userId;
+  const userId = session?.userId ?? null;
 
   try {
     const result = await processSingleEmailMessage(id, userId);

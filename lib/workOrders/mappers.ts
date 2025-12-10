@@ -19,7 +19,7 @@ import type { WorkOrder, WorkOrderInput } from "./types";
 export function dbToWorkOrder(dbRow: DBWorkOrder): WorkOrder {
   return {
     id: dbRow.id,
-    userId: dbRow.userId,
+    userId: dbRow.userId ?? null,
     timestampExtracted: dbRow.timestampExtracted?.toISOString() || new Date().toISOString(),
     workOrderNumber: dbRow.workOrderNumber,
     customerName: dbRow.customerName ?? null,
@@ -79,7 +79,7 @@ function sanitizeAmount(amount: string | null | undefined): string | null {
 export function inputToDbInsert(input: WorkOrderInput): DBWorkOrderInsert {
   return {
     id: input.id,
-    userId: input.userId, // Required: must be provided from authenticated session
+    userId: input.userId ?? null, // Optional: defaults to null for free version
     timestampExtracted: input.timestampExtracted ? new Date(input.timestampExtracted) : undefined,
     workOrderNumber: input.workOrderNumber,
     customerName: input.customerName ?? null,

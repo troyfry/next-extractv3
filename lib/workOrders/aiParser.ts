@@ -374,16 +374,18 @@ IMPORTANT: Return ONLY the JSON object, no markdown, no code blocks, no explanat
 }
 
 /**
- * Parse OpenAI response and convert to WorkOrderInput[].
+ * Parse OpenAI response and convert to WorkOrderInput[] (without userId).
+ * 
+ * Note: userId must be attached separately after calling this function.
  * 
  * @param responseText - Raw text response from OpenAI
  * @param email - Original EmailMessage for fallback values
- * @returns WorkOrderInput[] or null if parsing fails
+ * @returns WorkOrderInput[] (without userId) or null if parsing fails
  */
 function parseAiResponse(
   responseText: string,
   email: EmailMessage
-): WorkOrderInput[] | null {
+): Omit<WorkOrderInput, "userId">[] | null {
   try {
     // Try to extract JSON from the response (in case it's wrapped in markdown code blocks)
     let jsonText = responseText.trim();
@@ -461,14 +463,16 @@ function parseAiResponse(
  * 1. Checks if AI parsing is enabled
  * 2. Extracts text from all PDF attachments
  * 3. Calls OpenAI with a structured prompt
- * 4. Parses the JSON response into WorkOrderInput[]
+ * 4. Parses the JSON response into WorkOrderInput[] (without userId)
+ * 
+ * Note: userId must be attached separately after calling this function.
  * 
  * @param email - EmailMessage to parse
- * @returns WorkOrderInput[] if successful, null if AI is disabled or encounters an error
+ * @returns WorkOrderInput[] (without userId) if successful, null if AI is disabled or encounters an error
  */
 export async function aiParseWorkOrdersFromEmail(
   email: EmailMessage
-): Promise<WorkOrderInput[] | null> {
+): Promise<Omit<WorkOrderInput, "userId">[] | null> {
   // Check if AI parsing is enabled
   if (!isAiParsingEnabled()) {
     return null;

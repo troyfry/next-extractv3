@@ -6,10 +6,11 @@
 /**
  * Complete work order with all required fields.
  * Generated server-side: id and createdAt are always present.
+ * userId is optional for free version - defaults to empty string if not provided.
  */
 export type WorkOrder = {
   id: string;
-  userId: string; // User ID from Google OAuth 'sub' claim
+  userId: string | null; // User ID from Google OAuth 'sub' claim (optional for free version)
   timestampExtracted: string; // ISO string
   workOrderNumber: string;
   customerName: string | null;
@@ -30,11 +31,11 @@ export type WorkOrder = {
 /**
  * Input type for creating work orders.
  * id, timestampExtracted, and createdAt are optional (generated server-side if missing).
- * userId is required - must be provided from the authenticated session.
+ * userId is optional for free version - defaults to empty string if not provided.
  */
 export type WorkOrderInput = {
   id?: string;
-  userId: string; // Required: User ID from authenticated session
+  userId?: string | null; // Optional: User ID from authenticated session (not needed for free version)
   timestampExtracted?: string; // ISO string
   workOrderNumber: string;
   customerName?: string | null;

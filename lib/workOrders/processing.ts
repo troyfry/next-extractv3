@@ -127,18 +127,18 @@ export function buildWorkOrderInputsFromEmail(
  * Pipeline:
  * 1. Load the email by ID
  * 2. Try AI parsing first (if enabled), fall back to rule-based parser
- * 3. Attach userId to all work order inputs
+ * 3. Attach userId to all work order inputs (optional for free version)
  * 4. Check for duplicates by workOrderNumber (scoped to user)
  * 5. Insert only non-duplicate work orders
  * 6. Update email processingStatus
  * 
  * @param emailId - ID of the email message to process
- * @param userId - User ID from authenticated session (required)
+ * @param userId - User ID from authenticated session (optional for free version)
  * @returns ProcessEmailResult or null if email not found
  */
 export async function processSingleEmailMessage(
   emailId: string,
-  userId: string
+  userId?: string | null
 ): Promise<ProcessEmailResult | null> {
   // 1) Load the email
   const email = await emailMessageRepo.getById(emailId);
@@ -154,14 +154,15 @@ export async function processSingleEmailMessage(
     const aiResult = await aiParseWorkOrdersFromEmail(email);
 
     if (aiResult && aiResult.length > 0) {
-      candidateInputs = aiResult;
+      // Attach userId to AI results (optional for free version)
+      candidateInputs = aiResult.map((wo) => ({ ...wo, userId: userId ?? null })) as WorkOrderInput[];
       console.log(
         `AI parser used for email ${email.id}, produced ${aiResult.length} work order(s)`
       );
     } else {
       // Fall back to rule-based parser
       const ruleBasedInputs = buildWorkOrderInputsFromEmail(email);
-      candidateInputs = ruleBasedInputs.map((wo) => ({ ...wo, userId })) as WorkOrderInput[];
+      candidateInputs = ruleBasedInputs.map((wo) => ({ ...wo, userId: userId ?? null })) as WorkOrderInput[];
       console.log(
         `AI parser failed or disabled, falling back to rule-based parser for email ${email.id}`
       );
@@ -177,7 +178,7 @@ export async function processSingleEmailMessage(
       } : aiError
     );
     const ruleBasedInputs = buildWorkOrderInputsFromEmail(email);
-    candidateInputs = ruleBasedInputs.map((wo) => ({ ...wo, userId })) as WorkOrderInput[];
+    candidateInputs = ruleBasedInputs.map((wo) => ({ ...wo, userId: userId ?? null })) as WorkOrderInput[];
   }
 
   if (candidateInputs.length === 0) {
@@ -191,15 +192,15 @@ export async function processSingleEmailMessage(
     };
   }
 
-  // 3) Attach userId to all candidate inputs
+  // 3) Ensure userId is set on all candidate inputs (optional for free version)
   const inputsWithUserId = candidateInputs.map((w) => ({
     ...w,
-    userId,
+    userId: w.userId ?? userId ?? null,
   }));
 
-  // 4) Duplicate detection by workOrderNumber (scoped to user)
+  // 4) Duplicate detection by workOrderNumber (scoped to user, or null for free version)
   const numbers = inputsWithUserId.map((w) => w.workOrderNumber);
-  const existing = await workOrderRepo.findByWorkOrderNumbers(userId, numbers);
+  const existing = await workOrderRepo.findByWorkOrderNumbers(userId ?? null, numbers);
   const existingNumbers = new Set(existing.map((w) => w.workOrderNumber));
 
   const newInputs = inputsWithUserId.filter(

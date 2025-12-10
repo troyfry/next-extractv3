@@ -24,6 +24,14 @@ const nextConfig = {
       if (Array.isArray(config.module.noParse)) {
         config.module.noParse.push(/pdfjs-dist/);
       }
+      
+      // Suppress critical dependency warnings for pdfLoader.js
+      // This file uses dynamic requires which are safe in Node.js runtime
+      config.ignoreWarnings = config.ignoreWarnings || [];
+      config.ignoreWarnings.push({
+        module: /pdfLoader\.js$/,
+        message: /Critical dependency: the request of a dependency is an expression/,
+      });
     }
     return config;
   },

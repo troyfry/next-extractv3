@@ -19,7 +19,7 @@ import type { InferSelectModel, InferInsertModel } from "drizzle-orm";
 
 export const workOrders = pgTable("work_orders", {
   id: uuid("id").defaultRandom().primaryKey(),
-  userId: varchar("user_id", { length: 255 }).notNull(), // User ID from Google OAuth 'sub' claim
+  userId: varchar("user_id", { length: 255 }), // User ID from Google OAuth 'sub' claim (optional for free version)
   timestampExtracted: timestamp("timestamp_extracted", { withTimezone: false }).defaultNow().notNull(),
   workOrderNumber: varchar("work_order_number", { length: 255 }).notNull(),
   customerName: varchar("customer_name", { length: 255 }),

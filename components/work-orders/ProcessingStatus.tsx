@@ -26,11 +26,11 @@ export default function ProcessingStatus({
 
   // Mock processing items
   const items: ProcessingItem[] = [
-    { subject: "WO-2024-001 - HVAC Maintenance", facility: "Acme Corp", status: "Processed" },
-    { subject: "WO-2024-002 - Plumbing Repair", facility: "Tech Industries", status: "Processed" },
-    { subject: "WO-2024-003 - Electrical Inspection", facility: "Global Systems", status: "Skipped – PDF too large" },
-    { subject: "WO-2024-004 - Roof Repair", facility: "Acme Corp", status: "Processed" },
-    { subject: "WO-2024-005 - Window Replacement", facility: "Design Studio", status: "Processed" },
+    { subject: "WO-2024-001 - HVAC Maintenance", facility: "Acme Corp", status: "Processed" as const },
+    { subject: "WO-2024-002 - Plumbing Repair", facility: "Tech Industries", status: "Processed" as const },
+    { subject: "WO-2024-003 - Electrical Inspection", facility: "Global Systems", status: "Skipped – PDF too large" as const },
+    { subject: "WO-2024-004 - Roof Repair", facility: "Acme Corp", status: "Processed" as const },
+    { subject: "WO-2024-005 - Window Replacement", facility: "Design Studio", status: "Processed" as const },
   ].slice(0, Math.min(processed + skipped, 5));
 
   const getStatusColor = (status: ProcessingItem["status"]) => {

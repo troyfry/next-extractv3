@@ -36,19 +36,13 @@ function validateWorkOrderInput(input: unknown): input is WorkOrderInput {
 /**
  * POST /api/work-orders
  * Create/save multiple work orders.
- * Automatically attaches userId from session.
+ * Automatically attaches userId from session (optional for free version).
  */
 export async function POST(req: Request) {
   try {
-    // Check authentication
+    // Get userId from session if available (optional for free version)
     const session = await auth();
-    if (!session || !session.userId) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
-    }
-    const userId = session.userId;
+    const userId = session?.userId ?? null;
 
     // Check if database connection is configured
     if (!process.env.PG_CONNECTION_STRING) {
@@ -88,10 +82,10 @@ export async function POST(req: Request) {
       }
     }
 
-    // Attach userId to all work orders
+    // Attach userId to all work orders (optional for free version)
     const workOrdersWithUserId = body.workOrders.map((wo: WorkOrderInput) => ({
       ...wo,
-      userId,
+      userId: wo.userId ?? userId ?? null,
     }));
 
     // Save work orders
@@ -109,19 +103,13 @@ export async function POST(req: Request) {
 
 /**
  * GET /api/work-orders
- * Get all work orders for the authenticated user.
+ * Get all work orders for the authenticated user (or null for free version).
  */
 export async function GET() {
   try {
-    // Check authentication
+    // Get userId from session if available (optional for free version)
     const session = await auth();
-    if (!session || !session.userId) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
-    }
-    const userId = session.userId;
+    const userId = session?.userId ?? null;
 
     // Check if database connection is configured
     if (!process.env.PG_CONNECTION_STRING) {
@@ -151,19 +139,13 @@ export async function GET() {
 
 /**
  * DELETE /api/work-orders
- * Clear all work orders for the authenticated user (useful for testing/reset).
+ * Clear all work orders for the authenticated user (or null for free version).
  */
 export async function DELETE() {
   try {
-    // Check authentication
+    // Get userId from session if available (optional for free version)
     const session = await auth();
-    if (!session || !session.userId) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
-    }
-    const userId = session.userId;
+    const userId = session?.userId ?? null;
 
     await workOrderRepo.clearForUser(userId);
     return NextResponse.json({ success: true }, { status: 200 });

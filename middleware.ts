@@ -4,9 +4,16 @@
  * This middleware checks authentication status and redirects
  * unauthenticated users to a sign-in page.
  * 
+ * Free version routes are accessible without authentication:
+ * - /manual (manual upload page)
+ * - /api/process-pdf (PDF processing)
+ * - /api/work-orders (work orders API)
+ * - /api/work-orders/export (CSV export)
+ * 
  * Currently protects all routes except:
  * - /api/auth/* (authentication endpoints)
  * - /auth/* (sign-in pages)
+ * - Free version routes (listed above)
  */
 
 import { auth } from "@/auth";
@@ -23,6 +30,23 @@ export default auth((req) => {
 
   // Allow access to auth pages (sign-in page)
   if (pathname.startsWith("/auth")) {
+    return NextResponse.next();
+  }
+
+  // Free version routes - accessible without authentication
+  const freeVersionRoutes = [
+    "/manual",
+    "/work-orders",
+    "/api/process-pdf",
+    "/api/work-orders",
+    "/api/work-orders/export",
+  ];
+
+  const isFreeVersionRoute = freeVersionRoutes.some((route) =>
+    pathname === route || pathname.startsWith(route + "/")
+  );
+
+  if (isFreeVersionRoute) {
     return NextResponse.next();
   }
 

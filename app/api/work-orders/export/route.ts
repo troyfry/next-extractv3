@@ -35,15 +35,9 @@ function escapeCsvValue(value: string | null | undefined): string {
 
 export async function GET() {
   try {
-    // Check authentication
+    // Get userId from session if available (optional for free version)
     const session = await auth();
-    if (!session || !session.userId) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
-    }
-    const userId = session.userId;
+    const userId = session?.userId ?? null;
 
     // Fetch work orders for this user
     const workOrders = await workOrderRepo.listForUser(userId);

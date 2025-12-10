@@ -197,14 +197,9 @@ function parseAiResponse(
 
 export async function POST(request: Request) {
   try {
-    // Check authentication
+    // Get userId from session if available (optional for free version)
     const session = await auth();
-    if (!session || !session.userId) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
-    }
+    const userId = session?.userId ?? null;
 
     const processedAt = new Date().toISOString();
     let aiModelUsed: string | undefined;

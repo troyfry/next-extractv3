@@ -16,7 +16,16 @@ import { NextResponse } from "next/server";
 
 export default auth((req) => {
   const { pathname } = req.nextUrl;
-  const isAuthenticated = !!req.auth;
+  
+  // Handle auth errors gracefully
+  let isAuthenticated = false;
+  try {
+    isAuthenticated = !!req.auth;
+  } catch (error) {
+    console.error("[Middleware] Auth error:", error);
+    // If auth fails, treat as unauthenticated and redirect to sign-in
+    // This prevents server errors from breaking the app
+  }
 
   // Allow access to auth API routes
   if (pathname.startsWith("/api/auth")) {

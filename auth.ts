@@ -19,6 +19,33 @@ import Google from "next-auth/providers/google";
 import { getGoogleScopes } from "@/lib/google/scopes";
 
 /**
+ * Validate required environment variables.
+ * Returns error message if missing, null if all present.
+ */
+function validateEnvVars(): string | null {
+  const missing: string[] = [];
+  
+  if (!process.env.AUTH_SECRET) {
+    missing.push("AUTH_SECRET");
+  }
+  
+  if (!process.env.GOOGLE_CLIENT_ID) {
+    missing.push("GOOGLE_CLIENT_ID");
+  }
+  
+  if (!process.env.GOOGLE_CLIENT_SECRET) {
+    missing.push("GOOGLE_CLIENT_SECRET");
+  }
+  
+  if (missing.length > 0) {
+    return `Missing required environment variables: ${missing.join(", ")}. ` +
+      `Please set these in your production environment variables.`;
+  }
+  
+  return null;
+}
+
+/**
  * NextAuth configuration.
  * 
  * Uses Google provider with minimal scopes for now.
@@ -27,8 +54,8 @@ import { getGoogleScopes } from "@/lib/google/scopes";
 export const { handlers, signIn, signOut, auth } = NextAuth({
   providers: [
     Google({
-      clientId: process.env.GOOGLE_CLIENT_ID!,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+      clientId: process.env.GOOGLE_CLIENT_ID || "",
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET || "",
       authorization: {
         params: {
           scope: getGoogleScopes(),

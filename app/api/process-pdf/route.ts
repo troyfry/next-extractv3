@@ -19,24 +19,17 @@
  * - Does NOT write to database
  */
 import { NextResponse } from "next/server";
-import { writeFile, mkdir } from "fs/promises";
-import { join } from "path";
-import { existsSync } from "fs";
 import { auth } from "@/auth";
 import { extractWorkOrderNumberFromText } from "@/lib/workOrders/processing";
-import { getPdfTextFromAttachmentForDebug } from "@/lib/workOrders/aiParser";
+import { extractTextFromPdfBuffer } from "@/lib/workOrders/aiParser";
 import { isAiParsingEnabled, getAiModelName, getIndustryProfile } from "@/lib/config/ai";
 import { getPlanFromRequest } from "@/lib/api/getPlanFromRequest";
 import { Plan } from "@/lib/plan";
 import OpenAI from "openai";
-import type { EmailAttachment } from "@/lib/emailMessages/types";
 import type { ParsedWorkOrder, ManualProcessResponse } from "@/lib/workOrders/parsedTypes";
 
-// Ensure this route runs in Node.js runtime (not Edge) for file system operations
+// Ensure this route runs in Node.js runtime (not Edge) for PDF parsing
 export const runtime = "nodejs";
-
-// For development, store uploads in a local directory
-const UPLOAD_DIR = process.env.UPLOAD_DIR || join(process.cwd(), "uploads", "pdfs");
 
 // AI response structure
 type AiWorkOrder = {
@@ -197,14 +190,9 @@ function parseAiResponse(
 
 export async function POST(request: Request) {
   try {
-    // Check authentication
+    // Get userId from session if available (optional for free version)
     const session = await auth();
-    if (!session || !session.userId) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
-    }
+    const userId = session?.userId ?? null;
 
     const processedAt = new Date().toISOString();
     let aiModelUsed: string | undefined;
@@ -220,48 +208,50 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "No file provided" }, { status: 400 });
     }
 
-    // Validate file type
+    // Read file into buffer first (needed for validation)
+    const bytes = await file.arrayBuffer();
+    const buffer = Buffer.from(bytes);
+
+    // Validate file type - check MIME type, extension, and PDF magic bytes
     const isValidPdfType = file.type === "application/pdf" || 
                           file.type === "application/x-pdf" ||
                           file.name.toLowerCase().endsWith(".pdf");
     
-    if (!isValidPdfType) {
+    // Check PDF magic bytes (PDF files start with %PDF)
+    // This ensures we validate by content, not just MIME type (important for serverless)
+    const isValidPdfContent = buffer.length >= 4 && 
+                             buffer[0] === 0x25 && // %
+                             buffer[1] === 0x50 && // P
+                             buffer[2] === 0x44 && // D
+                             buffer[3] === 0x46;   // F
+    
+    if (!isValidPdfType && !isValidPdfContent) {
       return NextResponse.json(
-        { error: "File must be a PDF" },
+        { error: "File must be a valid PDF. Please ensure the file is a PDF document." },
         { status: 400 }
       );
     }
 
-    // Ensure upload directory exists
-    if (!existsSync(UPLOAD_DIR)) {
-      await mkdir(UPLOAD_DIR, { recursive: true });
+    // If MIME type doesn't match but content does, log a warning but proceed
+    if (!isValidPdfType && isValidPdfContent) {
+      console.warn(`[PDF Validation] File "${file.name}" has incorrect MIME type "${file.type}" but valid PDF content`);
     }
 
-    // Generate unique filename and save
-    const timestamp = Date.now();
-    const sanitizedFilename = file.name.replace(/[^a-zA-Z0-9.-]/g, "_");
-    const filename = `${timestamp}-${sanitizedFilename}`;
-    const filePath = join(UPLOAD_DIR, filename);
-
-    const bytes = await file.arrayBuffer();
-    const buffer = Buffer.from(bytes);
-    await writeFile(filePath, buffer);
-
-    // Create a mock attachment for processing
-    const attachment: EmailAttachment = {
-      id: `att-${timestamp}`,
-      filename: file.name,
-      mimeType: "application/pdf",
-      sizeBytes: file.size,
-      storageLocation: filePath,
-    };
-
-    // Extract text from PDF
-    const pdfText = await getPdfTextFromAttachmentForDebug(attachment);
-    
-    if (pdfText.startsWith("UNAVAILABLE_PDF_CONTENT:")) {
+    // Extract text from PDF directly from buffer (serverless-friendly - no filesystem needed)
+    let pdfText: string;
+    try {
+      pdfText = await extractTextFromPdfBuffer(buffer);
+    } catch (error) {
+      console.error("Error extracting text from PDF:", error);
       return NextResponse.json(
-        { error: "Failed to extract text from PDF" },
+        { error: "Failed to extract text from PDF. Please ensure the file is a valid PDF." },
+        { status: 400 }
+      );
+    }
+    
+    if (!pdfText || pdfText.trim().length === 0) {
+      return NextResponse.json(
+        { error: "PDF appears to be empty or contains no extractable text" },
         { status: 400 }
       );
     }

@@ -19,24 +19,17 @@
  * - Does NOT write to database
  */
 import { NextResponse } from "next/server";
-import { writeFile, mkdir } from "fs/promises";
-import { join } from "path";
-import { existsSync } from "fs";
 import { auth } from "@/auth";
 import { extractWorkOrderNumberFromText } from "@/lib/workOrders/processing";
-import { getPdfTextFromAttachmentForDebug } from "@/lib/workOrders/aiParser";
+import { extractTextFromPdfBuffer } from "@/lib/workOrders/aiParser";
 import { isAiParsingEnabled, getAiModelName, getIndustryProfile } from "@/lib/config/ai";
 import { getPlanFromRequest } from "@/lib/api/getPlanFromRequest";
 import { Plan } from "@/lib/plan";
 import OpenAI from "openai";
-import type { EmailAttachment } from "@/lib/emailMessages/types";
 import type { ParsedWorkOrder, ManualProcessResponse } from "@/lib/workOrders/parsedTypes";
 
-// Ensure this route runs in Node.js runtime (not Edge) for file system operations
+// Ensure this route runs in Node.js runtime (not Edge) for PDF parsing
 export const runtime = "nodejs";
-
-// For development, store uploads in a local directory
-const UPLOAD_DIR = process.env.UPLOAD_DIR || join(process.cwd(), "uploads", "pdfs");
 
 // AI response structure
 type AiWorkOrder = {
@@ -227,36 +220,25 @@ export async function POST(request: Request) {
       );
     }
 
-    // Ensure upload directory exists
-    if (!existsSync(UPLOAD_DIR)) {
-      await mkdir(UPLOAD_DIR, { recursive: true });
-    }
-
-    // Generate unique filename and save
-    const timestamp = Date.now();
-    const sanitizedFilename = file.name.replace(/[^a-zA-Z0-9.-]/g, "_");
-    const filename = `${timestamp}-${sanitizedFilename}`;
-    const filePath = join(UPLOAD_DIR, filename);
-
+    // Read file into buffer (process directly from memory - no filesystem needed)
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
-    await writeFile(filePath, buffer);
 
-    // Create a mock attachment for processing
-    const attachment: EmailAttachment = {
-      id: `att-${timestamp}`,
-      filename: file.name,
-      mimeType: "application/pdf",
-      sizeBytes: file.size,
-      storageLocation: filePath,
-    };
-
-    // Extract text from PDF
-    const pdfText = await getPdfTextFromAttachmentForDebug(attachment);
-    
-    if (pdfText.startsWith("UNAVAILABLE_PDF_CONTENT:")) {
+    // Extract text from PDF directly from buffer (serverless-friendly)
+    let pdfText: string;
+    try {
+      pdfText = await extractTextFromPdfBuffer(buffer);
+    } catch (error) {
+      console.error("Error extracting text from PDF:", error);
       return NextResponse.json(
-        { error: "Failed to extract text from PDF" },
+        { error: "Failed to extract text from PDF. Please ensure the file is a valid PDF." },
+        { status: 400 }
+      );
+    }
+    
+    if (!pdfText || pdfText.trim().length === 0) {
+      return NextResponse.json(
+        { error: "PDF appears to be empty or contains no extractable text" },
         { status: 400 }
       );
     }
